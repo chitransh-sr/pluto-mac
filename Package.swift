@@ -3,6 +3,9 @@ import PackageDescription
 
 let package = Package(
     name: "PlutoMac",
+    platforms: [
+        .macOS(.v14)
+    ],
     targets: [
         .executableTarget(
             name: "PlutoMac",

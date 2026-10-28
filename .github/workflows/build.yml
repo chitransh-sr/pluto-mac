@@ -38,7 +38,6 @@ jobs:
           file out/Pluto.app/Contents/MacOS/Pluto
           test -f out/Pluto.app/Contents/Info.plist
           test -f out/Pluto.app/Contents/Resources/Pluto.icns
-          test -f out/Pluto.app/Contents/Info.plist
           /usr/libexec/PlistBuddy -c "Print CFBundleIdentifier" out/Pluto.app/Contents/Info.plist
           /usr/libexec/PlistBuddy -c "Print CFBundleShortVersionString" out/Pluto.app/Contents/Info.plist
           /usr/libexec/PlistBuddy -c "Print CFBundleIconFile" out/Pluto.app/Contents/Info.plist
