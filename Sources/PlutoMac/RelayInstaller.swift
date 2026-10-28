@@ -234,4 +234,146 @@ final class RelayInstaller: ObservableObject {
         }
         objectWillChange.send()
     }
+
+    // MARK: - Codex CLI hooks
+
+    /// Codex CLI reads hooks from `~/.codex/config.toml`. We inject a `hook`
+    /// entry that POSTs each event type to Pluto's event feed.
+    static var codexConfigURL: URL {
+        FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".codex/config.toml")
+    }
+
+    static var codexConfigDir: URL {
+        FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".codex")
+    }
+
+    static func codexHookCommand(port: Int) -> String {
+        "curl -fsS -m 2 -X POST http://127.0.0.1:\(port)/event/codex -H 'Content-Type: application/json' --data-binary @- >/dev/null 2>&1"
+    }
+
+    func codexHooksInstalled() -> Bool {
+        guard let text = try? String(contentsOf: Self.codexConfigURL, encoding: .utf8) else { return false }
+        return text.contains("127.0.0.1:\(Prefs.shared.eventPort)/event/codex")
+    }
+
+    func installCodexHooks() {
+        let dir = Self.codexConfigDir
+        let cmd = Self.codexHookCommand(port: Prefs.shared.eventPort)
+        do {
+            try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            var toml = ""
+            if FileManager.default.fileExists(atPath: Self.codexConfigURL.path) {
+                toml = (try? String(contentsOf: Self.codexConfigURL, encoding: .utf8)) ?? ""
+            }
+            // Remove any previous managed block, then append ours.
+            if let startIdx = toml.range(of: Self.codexMarker) {
+                // Find end of our block: scan lines starting from the marker.
+                let lines = toml[startIdx.lowerBound...].split(separator: "\n", omittingEmptySubsequences: false)
+                _ = lines.prefix(5) // Our block is 5 lines: marker + [hooks] + 3 commands
+                // Compute end index: marker line start + 5 line ends
+                var endIdx = startIdx.lowerBound
+                for _ in 0..<5 {
+                    if endIdx < toml.endIndex, let nextNL = toml[endIdx...].firstIndex(of: "\n") {
+                        endIdx = toml.index(after: nextNL)
+                    } else {
+                        endIdx = toml.endIndex
+                        break
+                    }
+                }
+                toml.removeSubrange(startIdx.lowerBound..<endIdx)
+            }
+            let section = """
+            # --- Pluto hooks (managed) ---
+            [hooks]
+            user_prompt_submitted = ["\(cmd)"]
+            agent_completed = ["\(cmd)"]
+            notification = ["\(cmd)"]
+            """
+            if !toml.isEmpty && !toml.hasSuffix("\n") { toml += "\n" }
+            toml += "\n" + section + "\n"
+            try toml.write(to: Self.codexConfigURL, atomically: true, encoding: .utf8)
+            lastStatus = "Codex CLI hooks installed → \(Self.codexConfigURL.path)"
+        } catch {
+            lastStatus = "Could not install Codex hooks: \(error.localizedDescription)"
+        }
+        objectWillChange.send()
+    }
+
+    /// Marker comment for the managed block.
+    private static let codexMarker = "# --- Pluto hooks (managed) ---"
+
+    func removeCodexHooks() {
+        guard var toml = try? String(contentsOf: Self.codexConfigURL, encoding: .utf8) else { return }
+        guard let startIdx = toml.range(of: Self.codexMarker) else {
+            lastStatus = "No Codex hooks to remove."
+            objectWillChange.send()
+            return
+        }
+        // Remove our 5-line managed block.
+        var endIdx = startIdx.lowerBound
+        for _ in 0..<5 {
+            if endIdx < toml.endIndex, let nextNL = toml[endIdx...].firstIndex(of: "\n") {
+                endIdx = toml.index(after: nextNL)
+            } else {
+                endIdx = toml.endIndex
+                break
+            }
+        }
+        toml.removeSubrange(startIdx.lowerBound..<endIdx)
+        do {
+            try toml.write(to: Self.codexConfigURL, atomically: true, encoding: .utf8)
+            lastStatus = "Codex CLI hooks removed."
+        } catch {
+            lastStatus = "Could not remove Codex hooks: \(error.localizedDescription)"
+        }
+        objectWillChange.send()
+    }
+
+    // MARK: - Gemini CLI plugin
+
+    /// Gemini CLI supports a JSON plugin spec at ~/.gemini/plugins/pluto.json
+    /// that forwards events to an HTTP endpoint.
+    static var geminiPluginURL: URL {
+        FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent(".gemini/plugins/pluto.json")
+    }
+
+    static func geminiPluginInstalled() -> Bool {
+        FileManager.default.fileExists(atPath: Self.geminiPluginURL.path)
+    }
+
+    static func geminiPluginIsCurrent() -> Bool {
+        guard let text = try? String(contentsOf: Self.geminiPluginURL, encoding: .utf8) else { return false }
+        return text.contains("127.0.0.1:\(Prefs.shared.eventPort)")
+    }
+
+    func installGeminiPlugin() {
+        let dir = Self.geminiPluginURL.deletingLastPathComponent()
+        let plugin: [String: Any] = [
+            "name": "pluto",
+            "version": "1.0.0",
+            "description": "Pluto notifier for Gemini CLI",
+            "events": ["user_prompt", "agent_end", "notification"],
+            "endpoint": [
+                "url": "http://127.0.0.1:\(Prefs.shared.eventPort)/event/gemini",
+                "method": "POST",
+                "headers": ["Content-Type": "application/json"]
+            ]
+        ]
+        do {
+            try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            let data = try JSONSerialization.data(withJSONObject: plugin, options: [.prettyPrinted])
+            try data.write(to: Self.geminiPluginURL, options: .atomic)
+            lastStatus = "Gemini CLI plugin installed → \(Self.geminiPluginURL.path)"
+        } catch {
+            lastStatus = "Could not install Gemini plugin: \(error.localizedDescription)"
+        }
+        objectWillChange.send()
+    }
+
+    func removeGeminiPlugin() {
+        try? FileManager.default.removeItem(at: Self.geminiPluginURL)
+        lastStatus = "Gemini CLI plugin removed."
+        objectWillChange.send()
+    }
 }

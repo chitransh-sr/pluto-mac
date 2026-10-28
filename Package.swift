@@ -10,6 +10,14 @@ let package = Package(
             swiftSettings: [
                 .unsafeFlags(["-swift-version", "5"])
             ]
+        ),
+        .testTarget(
+            name: "PlutoMacTests",
+            dependencies: ["PlutoMac"],
+            path: "Tests/PlutoMacTests",
+            swiftSettings: [
+                .unsafeFlags(["-swift-version", "5"])
+            ]
         )
     ]
 )

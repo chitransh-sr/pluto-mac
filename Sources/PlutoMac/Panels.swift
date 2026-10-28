@@ -342,9 +342,11 @@ final class BannerController: ObservableObject {
                     ctx.allowsImplicitAnimation = true
                     self.panel.setFrame(startFrame, display: true)
                 }, completionHandler: {
-                    self.panel.orderOut(nil)
-                    self.note = nil
-                    self.objectWillChange.send()
+                    Task { @MainActor in
+                        self.panel.orderOut(nil)
+                        self.note = nil
+                        self.objectWillChange.send()
+                    }
                 })
             }
         }

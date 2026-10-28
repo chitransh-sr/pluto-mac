@@ -2,7 +2,21 @@
 
 All notable changes to the Mac port are documented here. SemVer applies.
 
-## 0.1.0 — first Mac release
+## 0.2.0 — premium UI & production polish
+
+* **Notch** shrunk to fit eyes + face only (72–96 px vs 100–140 px), eyes enlarged (4.2 px / 20 % of height) and brought closer together
+* **Expanded panel**: 20 pt continuous corners, 24 pt depth shadow, `white.10` stroke — HUD aesthetic instead of generic border
+* **Spinner**: `TimelineView`-driven `circle.dashed.circle` with continuous rotation, no leaked `@State` timers
+* **Caption**: now dual-line — state + project + live duration on top, snippet below; 1 Hz `tick` timer keeps the duration and age labels updating while a session is working
+* **Scan filtering**: GUI helper processes (Cursor) and sessions with unresolved cwd are dropped; scan rows for agents with a live SSE event session are hidden
+* **Header**: fixed 48 px height, no `.ignoresSafeArea` bleed, bold "Pluto" title, "reconnecting…" label
+* **Footer**: accuracy fix — shows "N active · N tracked · N events" instead of misleading "N sessions"; green LED with glow
+* **SessionRowView**: hover fill (`white.08`) + avatar glow; `checkmark.shield` for done, `exclamationmark.shield` for needs-you; full-row click target
+* **Agent activation**: click → `NSRunningApplication` via PID, falling back to ProcessScanner's last PID, then bundle ID
+* **Double-tap** on the notch to expand; **reconnect button** in the empty state
+* **To Do tab**: `Divider()` → custom `white.06` separators, gradient progress header, styled add-field
+* **App icon**: Pluto-the-planet icon (reddish-brown with Sputnik Planitia heart) packaged as `Pluto.icns`
+* App build version 0.2, bundle ID `com.chitransh-sr.pluto-mac`
 
 * The notch bot (SwiftUI + AppKit): black notch shape with dotted eyes and smile,
   blinks and breathes, pops on hover, never takes focus while small

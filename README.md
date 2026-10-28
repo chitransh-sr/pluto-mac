@@ -1,5 +1,7 @@
 # Pluto for Mac 🪐
 
+[![Build](https://github.com/chitransh-sr/pluto-mac/actions/workflows/build.yml/badge.svg)](https://github.com/chitransh-sr/pluto-mac/actions/workflows/build.yml)
+
 A Swift port of [Pluto for Windows](https://github.com/raktim-yoddha/pluto) for **macOS**,
 built with **SwiftUI + AppKit** — no Xcode app required, no browser engine, no Electron.
 
@@ -20,7 +22,7 @@ process scan (ps) ─3s────┘
 Requires macOS 13.5+ (Apple Silicon; Intel works too). No other tooling to install.
 
 ```bash
-git clone <this repo> pluto-mac && cd pluto-mac
+git clone https://github.com/chitransh-sr/pluto-mac.git pluto-mac && cd pluto-mac
 ./scripts/install.sh      # builds, installs to /Applications, launches
 ```
 
@@ -69,6 +71,19 @@ Notification` commands to `~/.claude/settings.json`, backing the original up as
 `settings.json.before-pluto` the first time. Removing the hooks strips only Pluto's
 entries.
 
+### Codex CLI hooks
+
+`Settings › Hooks & plugins › Install hooks` (under *Codex CLI*) adds profile-level
+`user_prompt_submitted / agent_completed / notification` hooks to `~/.codex/config.toml`,
+backing the original up as `config.toml.before-pluto` the first time. Removing the hooks
+strips only Pluto's entries. Auto-installed on first launch too.
+
+### Gemini CLI plugin
+
+`Settings › Hooks & plugins › Install plugin` (under *Gemini CLI*) writes a JSON plugin
+spec to `~/.gemini/plugins/pluto.json` that forwards `user_prompt / agent_end /
+notification` events to Pluto.
+
 ### Everyone else
 
 Codex, Gemini CLI, Cursor, Copilot CLI, Aider, Goose, Crush, Amp, Droid and Qwen Code
@@ -102,11 +117,12 @@ never stored. No network access except Pluto's own feed on `127.0.0.1`.
 
 ## Differences from the Windows original
 
-Same notch-bot idea, board and To Do — the things that depend on Windows APIs are not
-included in 0.1: the compositor-drawn spring shoulders (SwiftUI springs animate the
-shape instead), per-app window activation by PID for hook sessions, the update
-channel, and the Hiveory link. The three-state board (working · needs you · done),
-chimes, banners, To Do + History, launch-at-login and the settings cards are all here.
+Same notch-bot idea, board and To Do — the things that depend on Windows APIs are
+not included in 0.2: the compositor-drawn spring shoulders (SwiftUI springs animate the
+shape instead). The three-state board (working · needs you · done), chimes, banners,
+To Do + History, launch-at-login and the settings cards are all here.
+Per-app window activation by PID for hook sessions is replaced by a best-effort
+fallback chain (PID → last-seen PID → app bundle ID).
 
 ## License
 

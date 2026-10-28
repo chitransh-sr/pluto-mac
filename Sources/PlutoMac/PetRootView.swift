@@ -261,10 +261,10 @@ struct ExpandedPanel: View {
 
 struct AgentList: View {
     @ObservedObject private var store = SessionStore.shared
-    @ObservedObject private var tap: OpenCodeTap
+    @ObservedObject var tap: OpenCodeTap
 
-    init(tap: OpenCodeTap = OpenCodeTap.shared) {
-        _tap = ObservedObject(wrappedValue: tap)
+    init(tap: OpenCodeTap? = nil) {
+        _tap = ObservedObject(wrappedValue: tap ?? OpenCodeTap.shared)
     }
 
     var rows: [Session] {

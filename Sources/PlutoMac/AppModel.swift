@@ -133,6 +133,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if !relay.opencodePluginInstalled() || !relay.opencodePluginIsCurrent() {
             relay.installOpenCodePlugin()
         }
+        // Auto-install Claude Code + Codex hooks too — silent, non-destructive.
+        if !relay.claudeHooksInstalled() {
+            relay.installClaudeHooks()
+        }
+        if !relay.codexHooksInstalled() {
+            relay.installCodexHooks()
+        }
+        // Gemini plugin install is optional — only if the config dir exists.
+        // Users install it from Settings if they want Gemini event forwarding.
+        _ = RelayInstaller.geminiPluginInstalled() // no-op check; plugin installed via Settings tab
         UserDefaults.standard.set(true, forKey: "didFirstRun")
 
         model.notchPanel.install(model: model)

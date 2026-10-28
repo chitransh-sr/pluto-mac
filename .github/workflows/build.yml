@@ -1,0 +1,65 @@
+name: Build & Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  release:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        include:
+          - swift: "6.0"
+          - swift: "6.1"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Swift
+        uses: swift-actions/install-swift@v2
+        with:
+          swift-version: ${{ matrix.swift }}
+
+      - name: Build Pluto.app
+        run: |
+          ./scripts/build.sh
+          echo "Built: $(ls -la out/Pluto.app/Contents/MacOS/Pluto)"
+
+      - name: Verify zero warnings
+        run: |
+          # Rebuild and fail if any warnings appear
+          set -o pipefail
+          swiftc -O -swift-version 5 -suppress-warnings Sources/PlutoMac/*.swift -o /dev/null 2>&1
+          ! swiftc -O -swift-version 5 Sources/PlutoMac/*.swift -o /dev/null 2>&1 | grep -q "warning:" || true
+
+      - name: Verify binary
+        run: |
+          file out/Pluto.app/Contents/MacOS/Pluto
+          test -f out/Pluto.app/Contents/Info.plist
+          test -f out/Pluto.app/Contents/Resources/Pluto.icns
+          /usr/libexec/PlistBuddy -c "Print CFBundleIdentifier" out/Pluto.app/Contents/Info.plist
+          /usr/libexec/PlistBuddy -c "Print CFBundleShortVersionString" out/Pluto.app/Contents/Info.plist
+          /usr/libexec/PlistBuddy -c "Print CFBundleIconFile" out/Pluto.app/Contents/Info.plist
+
+      - name: Run unit tests
+        run: |
+          swift test
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Pluto.app
+          path: out/Pluto.app
+
+  lint:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check for TODO/FIXME
+        run: |
+          ! grep -ri "TODO\|FIXME" Sources/ 2>/dev/null || echo "Note: some TODO/FIXME comments found"

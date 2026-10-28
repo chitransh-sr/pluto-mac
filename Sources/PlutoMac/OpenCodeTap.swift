@@ -167,11 +167,13 @@ final class OpenCodeTap: ObservableObject {
         await withCheckedContinuation { (cont: CheckedContinuation<Bool, Never>) in
             let c = NWConnection(host: "127.0.0.1", port: NWEndpoint.Port(rawValue: port)!, using: .tcp)
             self.probeConn = c
-            var settled = false
+            // Box the flag in a class so it's safely capturable across Sendable closures.
+            final class Flag { var value = false }
+            let settled = Flag()
 
-            func finish(_ ok: Bool) {
-                guard !settled else { return }
-                settled = true
+            @Sendable func finish(_ ok: Bool) {
+                guard !settled.value else { return }
+                settled.value = true
                 c.cancel()
                 cont.resume(returning: ok)
             }
@@ -210,13 +212,13 @@ final class OpenCodeTap: ObservableObject {
 
             Task { [weak self] in
                 try? await Task.sleep(nanoseconds: Self.ioTimeoutSec * 1_000_000_000)
-                if !settled { finish(false) }
+                if !settled.value { finish(false) }
                 _ = self
             }
         }
     }
 
-    private static func probeLooksLikeOpenCode(_ data: Data) -> Bool {
+    private nonisolated static func probeLooksLikeOpenCode(_ data: Data) -> Bool {
         let text = String(decoding: data, as: UTF8.self)
         let is200 = text.hasPrefix("HTTP/1.1 200") || text.hasPrefix("HTTP/1.0 200")
         guard is200 else { return false }

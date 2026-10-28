@@ -84,8 +84,9 @@ final class SessionStore: ObservableObject {
             if let ms = body["updatedMs"] as? Double, ms > 0 {
                 sessions[key]?.lastActivity = Date(timeIntervalSince1970: ms / 1000)
             }
-        case "userpromptsubmit", "session.created", "session.status",
-             "message.updated", "message.part.updated", "permission.replied":
+        // OpenCode SSE + Claude Code hooks + Codex CLI hooks
+        case "userpromptsubmit", "user_prompt_submitted", "session.created",
+             "session.status", "message.updated", "message.part.updated", "permission.replied":
             moment = sessions[key] == nil ? .start : nil
             upsert(key: key, agent: agent, source: .event, cwd: cwd, snippet: snippet, title: title) {
                 $0.state = .working
@@ -95,7 +96,7 @@ final class SessionStore: ObservableObject {
             // Title/directory refresh only — don't flip the state.
             moment = nil
             upsert(key: key, agent: agent, source: .event, cwd: cwd, snippet: snippet, title: title) { _ in }
-        case "stop", "session.idle":
+        case "stop", "session.idle", "agent_completed":
             if sessions[key]?.state == .working {
                 let dur = durationText(since: sessions[key]?.workingSince)
                 moment = .done
@@ -114,7 +115,7 @@ final class SessionStore: ObservableObject {
                     }
                 }
             }
-        case "notification", "permission.asked", "permission.updated":
+        case "notification", "permission.asked", "permission.updated", "notification_requested":
             moment = .needsYou
             upsert(key: key, agent: agent, source: .event, cwd: cwd, snippet: snippet, title: title) {
                 $0.state = .needsYou
@@ -247,9 +248,11 @@ final class SessionStore: ObservableObject {
         tickTimer?.invalidate()
         tickTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
             guard let self else { return }
-            let hasWorking = self.sessions.values.contains { $0.source == .event && $0.state == .working }
-            if hasWorking {
-                self.tick &+= 1
+            Task { @MainActor in
+                let hasWorking = self.sessions.values.contains { $0.source == .event && $0.state == .working }
+                if hasWorking {
+                    self.tick &+= 1
+                }
             }
         }
     }

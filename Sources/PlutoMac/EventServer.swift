@@ -77,24 +77,29 @@ final class EventServer: ObservableObject {
         connection.receive(minimumIncompleteLength: 1, maximumLength: 65536) { [weak self] data, _, isComplete, error in
             let id = ObjectIdentifier(connection)
             guard let self else { return }
-            if let data, !data.isEmpty {
-                self.buffers[id, default: Data()] += data
-            }
-            if let request = self.buffers[id], Self.isComplete(request) {
-                self.handle(request: request, connection: connection)
-                self.drop(connection)
-                return
-            }
-            if isComplete || error != nil {
-                // Client hung up; parse what we have.
-                if let request = self.buffers[id] {
-                    self.handle(request: request, connection: connection)
+            // The receive completion callback is @Sendable-escaping; route all
+            // main-actor mutations through a Task so the compiler is satisfied
+            // and we never race the UI.
+            Task { @MainActor in
+                if let data, !data.isEmpty {
+                    self.buffers[id, default: Data()] += data
                 }
-                self.drop(connection)
-            } else if self.buffers[id]?.count ?? 0 > 1_048_576 {
-                self.drop(connection)
-            } else {
-                self.receiveLoop(connection)
+                if let request = self.buffers[id], Self.isComplete(request) {
+                    self.handle(request: request, connection: connection)
+                    self.drop(connection)
+                    return
+                }
+                if isComplete || error != nil {
+                    // Client hung up; parse what we have.
+                    if let request = self.buffers[id] {
+                        self.handle(request: request, connection: connection)
+                    }
+                    self.drop(connection)
+                } else if self.buffers[id]?.count ?? 0 > 1_048_576 {
+                    self.drop(connection)
+                } else {
+                    self.receiveLoop(connection)
+                }
             }
         }
     }

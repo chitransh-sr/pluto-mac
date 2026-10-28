@@ -93,17 +93,40 @@ final class ProcessScanner: ObservableObject {
 
     private func hit(_ needle: String, tokens: [String], args: String) -> Bool {
         // Match the executable only: the first token's basename, or the token
-        // right after a node/bun/deno runtime (npm globals). Checking every
-        // token let any path containing the agent name — e.g. Cursor's
-        // `.../cursor` helper paths — masquerade as that agent (13 fake rows).
+        // right after a node/bun/deno runtime (npm globals), or the token after
+        // `python -m` (pip-installed modules like aider). Checking every token
+        // would let any path containing the agent name — e.g. Cursor's
+        // `.../cursor` helper paths — masquerade as that agent.
         guard let exe = tokens.first else { return false }
         let exeBase = (exe as NSString).lastPathComponent.lowercased()
         if exeBase == needle { return true }
+
+        // Handle `node /path/to/<agent>` and `npx <agent>` etc.
         if ["node", "bun", "deno", "npx", "bunx"].contains(exeBase), tokens.count > 1 {
             let second = (tokens[1] as NSString).lastPathComponent.lowercased()
             if second == needle { return true }
+            // Also match `node /path/to/@scope/<agent>/dist/index.js`
+            if second.contains("/\(needle)/") || second.contains("/\(needle).") { return true }
         }
-        _ = args
+
+        // Handle `python -m <agent>` (pip-installed modules like aider)
+        if ["python", "python3", "python3.11", "python3.12", "python3.13", "py", "python3.10"].contains(exeBase) {
+            for i in 1..<tokens.count {
+                if tokens[i] == "-m", i + 1 < tokens.count {
+                    let mod = tokens[i + 1].lowercased()
+                    if mod == needle || mod == "\(needle)s" { return true }
+                }
+            }
+        }
+
+        // Handle hyphenated names: qwen-code → qwen
+        if exeBase.hasPrefix("\(needle)-") { return true }
+        if exeBase.hasPrefix("\(needle)_") { return true }
+
+        // Handle CLI variants: claude-code → claude, gemini-cli → gemini
+        let cliName = "\(needle)-cli"
+        if exeBase == cliName || exeBase == "\(needle)cli" { return true }
+
         return false
     }
 

@@ -148,6 +148,30 @@ struct RelaysTab: View {
                 )
             }
 
+            Section("Codex CLI") {
+                relayRow(
+                    installed: relay.codexHooksInstalled(),
+                    current: relay.codexHooksInstalled(),
+                    path: RelayInstaller.codexConfigURL.path,
+                    install: "Install hooks",
+                    installAction: { relay.installCodexHooks() },
+                    removeAction: { relay.removeCodexHooks() },
+                    note: "Hooks in ~/.codex/config.toml that POST session events to Pluto. Codex CLI by OpenAI."
+                )
+            }
+
+            Section("Gemini CLI") {
+                relayRow(
+                    installed: RelayInstaller.geminiPluginInstalled(),
+                    current: RelayInstaller.geminiPluginIsCurrent(),
+                    path: RelayInstaller.geminiPluginURL.path,
+                    install: "Install plugin",
+                    installAction: { relay.installGeminiPlugin() },
+                    removeAction: { relay.removeGeminiPlugin() },
+                    note: "A JSON plugin spec in ~/.gemini/plugins/ that forwards events to Pluto. Gemini CLI by Google."
+                )
+            }
+
             if !relay.lastStatus.isEmpty {
                 Section {
                     Text(relay.lastStatus)
@@ -293,7 +317,7 @@ struct TodoSettingsTab: View {
             }
         }
         .formStyle(.grouped)
-        .onChange(of: prefs.historyRetention.rawValue) { _ in
+        .onChange(of: prefs.historyRetention.rawValue) { _, _ in
             todos.save()
         }
     }
